@@ -27,7 +27,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Setup Helm
-        uses: helm/setup-helm@v3
+        uses: Azure/setup-helm@v5
 
       - name: Build helm repo
         shell: bash
