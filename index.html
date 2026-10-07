@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EchoHeaders — Deploy</title>
+<style>
+  :root {
+    --bg: #F8FAFC;
+    --surface: #FFFFFF;
+    --muted-bg: #F1F5F9;
+    --text: #0F172A;
+    --text-2: #475569;
+    --muted: #64748B;
+    --border: #E2E8F0;
+    --brand: #0f556f;
+    --brand-soft: #E9FBF6;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    --sans: "Plus Jakarta Sans", Inter, system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px;
+  }
+  .topbar .brand { font-size: 18px; font-weight: 700; }
+  .topbar .brand em { font-style: normal; color: var(--brand); }
+  .topbar p { margin: 4px 0 0; color: var(--text-2); font-size: 14px; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .lead { margin: 0 0 24px; color: var(--text-2); font-size: 14px; max-width: 640px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .badge {
+    display: inline-block;
+    height: 24px;
+    line-height: 24px;
+    padding: 0 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .desc { margin: 8px 0 16px; color: var(--text-2); font-size: 14px; }
+  pre {
+    margin: 0;
+    padding: 16px;
+    background: var(--muted-bg);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text-2);
+  }
+  p.cmd-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+  code { font-family: var(--mono); font-size: 0.9em; background: var(--muted-bg); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--brand); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 24px 40px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">Echo<em>Headers</em></div>
+  <p>HTTP headers echo console with ping, traceroute, and DNS lookup modules.</p>
+</div>
+<main>
+  <h1>How to deploy</h1>
+  <p class="lead">
+    Three supported ways: local Docker, Kubernetes manifests, or the Helm chart from this
+    site's repository at <a href="/charts">/charts</a>.
+  </p>
+
+  <div class="card">
+    <h2>Docker <span class="badge">local / single host</span></h2>
+    <p class="desc">Build and run the container. Port 8080 is exposed; the image ships with <code>curl</code>, <code>ping</code>, <code>traceroute</code>, and <code>dig</code>.</p>
+    <pre>docker build -t echoheaders .
+docker run --rm -p 8080:8080 echoheaders
+
+# or with Docker Compose
+cd deploy/docker
+docker compose up -d</pre>
+    <p class="cmd-note">Rate limits per minute per IP: <code>RATE_LIMIT_PING</code>, <code>RATE_LIMIT_TRACEROUTE</code>, <code>RATE_LIMIT_DNS</code> (default 10 each).</p>
+  </div>
+
+  <div class="card">
+    <h2>Kubernetes <span class="badge">kubectl apply</span></h2>
+    <p class="desc">Manifests in <code>deploy/kubernetes/</code> (Deployment, Service, Traefik Ingress). Set the image registry, ingress host, and namespace first. The <code>NET_RAW</code> capability is required for ping/traceroute.</p>
+    <pre># after building &amp; pushing the image:
+docker build -t &lt;registry&gt;/echoheaders:&lt;tag&gt; .
+docker push &lt;registry&gt;/echoheaders:&lt;tag&gt;
+
+kubectl apply -f deploy/kubernetes/
+kubectl -n &lt;namespace&gt; rollout status deployment/echoheaders</pre>
+  </div>
+
+  <div class="card">
+    <h2>Helm <span class="badge">recommended</span></h2>
+    <p class="desc">The chart is published automatically to the Helm repository on every push to <code>main</code>.</p>
+    <pre>helm repo add echoheaders https://echoheaders.is-a.dev/charts
+helm repo update
+
+helm upgrade --install echo echoheaders/echoheaders \
+  --namespace echoheaders --create-namespace
+
+# useful overrides:
+helm upgrade --install echo echoheaders/echoheaders \
+  --namespace echoheaders --create-namespace \
+  --set ingress.hosts[0].host=echo.example.com \
+  --set replicaCount=2</pre>
+    <p class="cmd-note">Verify: <code>helm test echo --namespace echoheaders</code> · Repo index: <a href="/charts/index.yaml">/charts/index.yaml</a></p>
+  </div>
+
+</main>
+<footer>EchoHeaders · A minimal Go HTTP service packaged as a small network console with usefull modules</footer>
+</body>
+</html>

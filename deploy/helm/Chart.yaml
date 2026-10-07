@@ -1,0 +1,19 @@
+apiVersion: v2
+name: echoheaders
+description: EchoHeaders — A minimal Go HTTP service packaged as a small network console with usefull modules
+type: application
+version: "1.0.0"
+appVersion: "1.0.0"
+
+keywords:
+  - echo
+  - headers
+  - ping
+  - traceroute
+  - dns
+
+maintainers:
+  - name: vikipranata
+
+sources:
+  - https://github.com/vikipranata/echoheaders

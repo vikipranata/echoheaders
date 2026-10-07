@@ -1,6 +1,6 @@
 # EchoHeaders
 
-A minimal Go HTTP service packaged as a small network console with three modules:
+A minimal Go HTTP service packaged as a small network console with usefull modules:
 
 - **HTTP Headers** (`/`) — echoes back the request/response headers, as a styled HTML page or JSON
 - **Ping** (`/ping`) — POST an IPv4/IPv6 address to run an ICMP ping from the container
@@ -296,3 +296,58 @@ default on the `tenap02kube01` cluster).
 - `ingress.yaml` routes `/` (Prefix) on the configured host to the service via Traefik.
 - Ping/traceroute results depend on the pod's outbound network path (NAT, firewall, Cilium
   egress policies), so unreachable results may be network policy rather than a real failure.
+
+## Deploy with Helm
+
+The chart lives in `deploy/helm/` and is published as a Helm repository at
+`https://echoheaders.is-a.dev/charts`. A GitHub Pages workflow
+(`.github/workflows/static.yaml`) rebuilds and republishes `charts/index.yaml` +
+`charts/*.tgz` (via `charts/build.sh`) automatically on every push to `main`, and serves the
+deploy guide at `https://echoheaders.is-a.dev/`.
+
+1. **Add the repository and install** (release `echo`, namespace `echoheaders`):
+
+   ```bash
+   helm repo add echoheaders https://echoheaders.is-a.dev/charts
+   helm repo update
+
+   helm upgrade --install echo echoheaders/echoheaders \
+     --namespace echoheaders --create-namespace
+   ```
+
+2. **Useful values** (override with `-f values.yaml` or `--set`):
+
+   | Key                          | Default                    | Description                                |
+   | ---------------------------- | -------------------------- | ------------------------------------------ |
+   | `image.repository`           | `vikipranata/echoheaders`  | Image repository                           |
+   | `image.tag`                  | `latest`                   | Image tag                                  |
+   | `replicaCount`               | `1`                        | Replicas (or use `autoscaling.enabled`)    |
+   | `port`                       | `8080`                     | App port (`PORT` env)                      |
+   | `rateLimits.dns/ping/traceroute` | `10`                    | Executions per minute per IP (see above)   |
+   | `ingress.enabled`            | `true`                     | Create the Ingress                         |
+   | `ingress.className`          | `traefik`                  | Ingress class                              |
+   | `ingress.hosts[0].host`      | `echo.app.neoapp.id`       | FQDN                                       |
+   | `securityContext.capabilities.add` | `["NET_RAW"]`        | Keep it for ping/traceroute to work        |
+
+   ```bash
+   helm upgrade --install echo echoheaders/echoheaders \
+     --namespace echoheaders --create-namespace \
+     --set ingress.hosts[0].host=echo.app.neoapp.id
+   ```
+
+3. **Test / status**:
+
+   ```bash
+   helm test echo --namespace echoheaders        # hits /healthz
+   helm status echo --namespace echoheaders
+   helm get values echo --namespace echoheaders
+   ```
+
+4. **Publishing a new chart version** — bump `version` in `deploy/helm/Chart.yaml` and push
+   to `main`; the workflow publishes it automatically. To build locally:
+
+   ```bash
+   ./charts/build.sh    # regenerates charts/echoheaders-<version>.tgz + charts/index.yaml
+   ```
+
+   Clients then run `helm repo update`.

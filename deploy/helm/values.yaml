@@ -1,0 +1,117 @@
+
+replicaCount: 1
+
+image:
+  repository: vikipranata/echoheaders
+  pullPolicy: IfNotPresent
+  # Overrides the image tag (defaults to the chart appVersion).
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels:
+  neo-app: "true"
+
+# TCP port the app listens on (also exported as the PORT env var).
+port: 8080
+
+# Rate limits per minute per client IP for the execution (POST) endpoints.
+# Invalid or non-positive values fall back to the app default (10).
+rateLimits:
+  dns: 10
+  ping: 10
+  traceroute: 10
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+    # Required by the ping/traceroute modules (raw ICMP sockets).
+    add: ["NET_RAW"]
+
+service:
+  type: ClusterIP
+  # Service port; the app container listens on .Values.port.
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations: {}
+  hosts:
+    - host: echo.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: echo-headers-tls
+  #   hosts:
+  #     - echo.example.com
+
+# Gateway API HTTPRoute (disabled by default; requires a gateway-api controller).
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  hostnames:
+    - echo.example.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 20
+  timeoutSeconds: 3
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
