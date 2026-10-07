@@ -30,16 +30,26 @@ jobs:
         uses: helm/setup-helm@v3
 
       - name: Build helm repo
+        shell: bash
         run: |
+          set -euo pipefail
           chmod +x charts/build.sh
           ./charts/build.sh
+          test -s charts/index.yaml
+          compgen -G "charts/echoheaders-*.tgz" > /dev/null
 
       - name: Prepare site
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p public/charts
-          cp index.html public/
-          cp charts/index.yaml public/charts/
+          install -m 0644 index.html public/index.html
+          install -m 0644 charts/index.yaml public/charts/index.yaml
           cp charts/echoheaders-*.tgz public/charts/
+
+          test -s public/index.html
+          test -s public/charts/index.yaml
+          compgen -G "public/charts/echoheaders-*.tgz" > /dev/null
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
